@@ -10,7 +10,7 @@ and copy this content into it.
 #define TEMBOO_APP_KEY_NAME "myFirstApp"  // Your Temboo app key name
 #define TEMBOO_APP_KEY "e4eafd9fd18a4789902de98d05a9671d"  // Your Temboo app key
 
-#define ETHERNET_SHIELD_MAC {}
+#define ETHERNET_SHIELD_MAC {0x90, 0xA2, 0xDA, 0x00, 0x85, 0xDC}
 
 /* 
 The same TembooAccount.h file settings can be used for all Temboo SDK sketches.  

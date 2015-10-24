@@ -1,12 +1,11 @@
-#include <EEPROM.h>
-#include "TembooAccount.h"
 #include <SPI.h>
 #include <Dhcp.h>
 #include <Dns.h>
 #include <Ethernet.h>
 #include <EthernetClient.h>
 #include <Temboo.h>
-#include <LiquidCrystal.h>
+#include "TembooAccount.h" // Contains Temboo account information
+  
 
 const int input1 = A1;
 const int input2 = A5;
@@ -15,27 +14,38 @@ const int P1 = A3; // Input button P1 on A3
 const int P2 = A4; // Input button P2 A4
 
 float Calibration = 0;
+float finalnum = 0;
 
+byte ethernetMACAddress[] = ETHERNET_SHIELD_MAC;
+EthernetClient client;
+
+int numRuns = 1;   // Execution count, so this doesn't run forever
+int maxRuns = 10;   // Maximum number of times the Choreo should be executed
 
 int buttonState = 0;
 int p2state = 0;
 
 //8, A0, 3, 5, 6, 7
-LiquidCrystal lcd(8, A0, 4, 5, 6, 7);
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600);
 
   // initialize the pushbutton pin as an input:
   pinMode(1, INPUT);
-  lcd.print("hello");
-
+  pinMode(4, INPUT);
 
   int inputstate = analogRead(1);
 
+   Serial.print("DHCP:");
+  if (Ethernet.begin(ethernetMACAddress) == 0) {
+    Serial.println("FAIL");
+    while(true);
+  }
+  Serial.println("OK");
+  delay(5000);
 
-
-
+  Serial.println("Setup complete.\n");
   Serial.print("Pin A1: " + String((inputstate * (5.0 / 1023))) + "\n");
 
 
@@ -145,9 +155,48 @@ void loop() {
       Serial.print("Overall Average: " + String((overall)) + "\n");
     } else if (overall > 0) {
       Serial.print("Overall Average: " + String((overall/4)*10) + "\n");
-
+      finalnum = (overall/4)*10;
       Serial.print((overall/4) /500);
     }
+
+    if (numRuns <= maxRuns) {
+    Serial.println("Running UpdateObject - Run #" + String(numRuns++));
+
+    TembooChoreo UpdateObjectChoreo(client);
+
+    // Invoke the Temboo client
+    UpdateObjectChoreo.begin();
+
+    // Set Temboo account credentials
+    UpdateObjectChoreo.setAccountName(TEMBOO_ACCOUNT);
+    UpdateObjectChoreo.setAppKeyName(TEMBOO_APP_KEY_NAME);
+    UpdateObjectChoreo.setAppKey(TEMBOO_APP_KEY);
+
+    String RESTAPIKeyValue = "4e85Pva8SfFOq8dvBTUfhD20XVUxNpsicoC2wMes";
+    UpdateObjectChoreo.addInput("RESTAPIKey", RESTAPIKeyValue);
+    String ObjectIDValue = "sBdw9q2dqH";
+    UpdateObjectChoreo.addInput("ObjectID", ObjectIDValue);
+    String ApplicationIDValue = "fKFcxAML9tqkehYq0UxpMhkjSLIVdZEgIXTNLEtt";
+    UpdateObjectChoreo.addInput("ApplicationID", ApplicationIDValue);
+    String ObjectContentsValue = "{\n\"weight\":\""+String(finalnum)+"\"\n}";
+    UpdateObjectChoreo.addInput("ObjectContents", ObjectContentsValue);
+    String ClassNameValue = "scales";
+    UpdateObjectChoreo.addInput("ClassName", ClassNameValue);
+    // Identify the Choreo to run
+    UpdateObjectChoreo.setChoreo("/Library/Parse/Objects/UpdateObject");
+
+    // Run the Choreo; when results are available, print them to serial
+    UpdateObjectChoreo.run();
+
+    while(UpdateObjectChoreo.available()) {
+      char c = UpdateObjectChoreo.read();
+      Serial.print(c);
+    }
+    UpdateObjectChoreo.close();
+  }
+
+  Serial.println("\nWaiting...\n");
+  delay(30000); // wait 30 seconds between UpdateObject calls
 
     //  Serial.print("clicked ");
 
